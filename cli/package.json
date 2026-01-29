@@ -1,0 +1,23 @@
+{
+  "name": "medical-clinic-cli",
+  "version": "1.0.0",
+  "description": "CLI client for Medical Clinic Booking System",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx ts-node index.ts",
+    "test:happy": "npx ts-node index.ts --test happy",
+    "test:quota-exhausted": "npx ts-node index.ts --test quota-exhausted",
+    "test:payment-failure": "npx ts-node index.ts --test payment-failure"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}

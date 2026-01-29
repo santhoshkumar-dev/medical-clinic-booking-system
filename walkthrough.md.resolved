@@ -1,0 +1,129 @@
+# Medical Clinic Booking System - Walkthrough
+
+## Summary
+
+Built a complete **Medical Clinic Booking System** demonstrating **SAGA Choreography** pattern with:
+
+- Event-driven architecture (no central orchestrator)
+- Compensation logic for failure scenarios
+- Real-time status tracking
+- MongoDB persistence
+- Interactive CLI and Web UI
+
+---
+
+## What Was Built
+
+### 1. Database Layer (`lib/db/`)
+- MongoDB connection singleton with auto-indexing
+- 4 collections: `bookings`, `discountQuota`, `sagaEvents`, `auditLogs`
+- IST timezone support for quota tracking
+
+### 2. Event Bus (`lib/events/`)
+- MongoDB-backed event bus with publish/subscribe
+- 11 event types covering the full SAGA lifecycle
+- Correlation ID for distributed tracing
+
+### 3. SAGA Services (`lib/services/`)
+| Service | Subscribes To | Emits |
+|---------|---------------|-------|
+| BookingService | - | BookingRequested, BookingFailed |
+| PricingService | BookingRequested | PricingCalculated |
+| DiscountQuotaService | PricingCalculated, CompensationTriggered | DiscountQuotaReserved/Rejected/Released |
+| PaymentService | DiscountQuotaReserved, CompensationTriggered | PaymentCompleted/Failed/Reversed |
+| ConfirmationService | PaymentCompleted | BookingConfirmed |
+| AuditLogService | ALL | (logs only) |
+
+### 4. API Routes (`app/api/`)
+- `POST /api/booking` - Initiate booking
+- `GET /api/booking/[id]/status` - Poll saga status
+- `GET /api/services` - Get available services
+- `GET /api/quota/status` - Check quota
+- `POST /api/test` - Test helpers
+
+### 5. Frontend (`components/`)
+- Multi-step wizard with 4 stages
+- Real-time event timeline with polling
+- shadcn/ui styling
+
+### 6. CLI (`cli/`)
+- Interactive booking flow
+- 3 pre-configured test scenarios
+- Colored event stream output
+
+---
+
+## Business Rules Implemented
+
+### R1: Discount Rule (12%)
+```typescript
+const isEligible = 
+  (gender === 'female' && isBirthdayToday(dob)) || 
+  (basePrice > 1000);
+```
+
+### R2: Daily Quota
+- Default: 100 discounts/day
+- IST timezone for date key
+- Atomic reserve/release operations
+
+---
+
+## Compensation Paths
+
+### Path 1: Payment Failure
+```
+PaymentFailed → CompensationTriggered → DiscountQuotaReleased → BookingFailed
+```
+
+### Path 2: Quota Exhausted  
+```
+DiscountQuotaRejected → BookingFailed (no compensation needed)
+```
+
+---
+
+## Verification
+
+### Build Status
+✅ TypeScript compilation passed  
+✅ Next.js build successful  
+✅ CLI dependencies installed
+
+### Test Scenarios Available
+1. **Happy Path**: `npm run test:happy` in CLI
+2. **Quota Exhausted**: `npm run test:quota-exhausted` in CLI
+3. **Payment Failure**: Set `PAYMENT_SIMULATION_MODE=fail` then `npm run test:happy`
+
+---
+
+## Files Created
+
+| Path | Description |
+|------|-------------|
+| `lib/db/mongodb.ts` | MongoDB connection |
+| `lib/db/models/*.ts` | 4 data models |
+| `lib/events/*.ts` | Event types and bus |
+| `lib/services/*.ts` | 7 SAGA services |
+| `lib/data/medicalServices.ts` | Medical services data |
+| `app/api/**/*.ts` | 5 API routes |
+| `components/*.tsx` | 4 UI components |
+| `cli/index.ts` | Interactive CLI |
+| `README.md` | Full documentation |
+
+---
+
+## How to Test
+
+### Web UI
+1. Run `npm run dev`
+2. Open http://localhost:3000
+3. Complete the booking flow
+
+### CLI
+```bash
+cd cli
+npm run test:happy        # Success scenario
+npm run test:quota-exhausted  # Quota failure
+npm run test:payment-failure  # Compensation flow
+```
