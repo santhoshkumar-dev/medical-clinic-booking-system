@@ -119,7 +119,7 @@ export async function PUT(request: Request) {
         );
       }
 
-      const updated = await updateServicePriceDb(serviceId, price, user.id);
+      const updated = await updateServicePriceDb(serviceId, price);
 
       if (!updated) {
         return NextResponse.json(

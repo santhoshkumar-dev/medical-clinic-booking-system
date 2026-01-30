@@ -1,9 +1,9 @@
-import { ObjectId } from "mongodb";
-import { getDb } from "../mongodb";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { ensureConnection } from "../mongoose";
 import { SagaEventType } from "../../events/types";
 
-export interface SagaEvent {
-  _id?: ObjectId;
+// Saga event document interface
+export interface ISagaEvent extends Document {
   correlationId: string;
   eventType: SagaEventType;
   service: string;
@@ -12,66 +12,73 @@ export interface SagaEvent {
   timestamp: Date;
 }
 
-/**
- * Appends a new event to the saga event log (append-only)
- */
-export async function appendSagaEvent(
-  event: Omit<SagaEvent, "_id" | "timestamp">,
-): Promise<SagaEvent> {
-  const db = await getDb();
+// Saga event schema
+const SagaEventSchema = new Schema<ISagaEvent>(
+  {
+    correlationId: { type: String, required: true, index: true },
+    eventType: { type: String, required: true, index: true },
+    service: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["success", "failure", "compensation"],
+      required: true,
+    },
+    data: { type: Schema.Types.Mixed, default: {} },
+    timestamp: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: false, collection: "sagaEvents" },
+);
 
-  const doc: SagaEvent = {
-    ...event,
-    timestamp: new Date(),
-  };
-
-  const result = await db.collection<SagaEvent>("sagaEvents").insertOne(doc);
-  return { ...doc, _id: result.insertedId };
+// Get or create model
+function getSagaEventModel(): Model<ISagaEvent> {
+  return (
+    mongoose.models.SagaEvent ||
+    mongoose.model<ISagaEvent>("SagaEvent", SagaEventSchema)
+  );
 }
 
 /**
- * Gets all events for a saga by correlation ID, ordered by timestamp
+ * Appends a new saga event (append-only log)
+ */
+export async function appendSagaEvent(event: {
+  correlationId: string;
+  eventType: SagaEventType;
+  service: string;
+  status: "success" | "failure" | "compensation";
+  data: Record<string, unknown>;
+}): Promise<ISagaEvent> {
+  await ensureConnection();
+  const SagaEvent = getSagaEventModel();
+
+  const doc = new SagaEvent({
+    ...event,
+    timestamp: new Date(),
+  });
+
+  return doc.save();
+}
+
+/**
+ * Gets all saga events for a correlation ID
  */
 export async function getSagaEvents(
   correlationId: string,
-): Promise<SagaEvent[]> {
-  const db = await getDb();
-
-  return db
-    .collection<SagaEvent>("sagaEvents")
-    .find({ correlationId })
-    .sort({ timestamp: 1 })
-    .toArray();
+): Promise<ISagaEvent[]> {
+  await ensureConnection();
+  const SagaEvent = getSagaEventModel();
+  return SagaEvent.find({ correlationId }).sort({ timestamp: 1 });
 }
 
 /**
- * Gets the latest event for a saga
+ * Gets recent saga events
  */
-export async function getLatestSagaEvent(
-  correlationId: string,
-): Promise<SagaEvent | null> {
-  const db = await getDb();
-
-  const events = await db
-    .collection<SagaEvent>("sagaEvents")
-    .find({ correlationId })
-    .sort({ timestamp: -1 })
-    .limit(1)
-    .toArray();
-
-  return events[0] || null;
+export async function getRecentSagaEvents(
+  limit: number = 100,
+): Promise<ISagaEvent[]> {
+  await ensureConnection();
+  const SagaEvent = getSagaEventModel();
+  return SagaEvent.find().sort({ timestamp: -1 }).limit(limit);
 }
 
-/**
- * Checks if a saga has reached a terminal state
- */
-export async function isSagaComplete(correlationId: string): Promise<boolean> {
-  const db = await getDb();
-
-  const terminalEvent = await db.collection<SagaEvent>("sagaEvents").findOne({
-    correlationId,
-    eventType: { $in: ["BookingConfirmed", "BookingFailed"] },
-  });
-
-  return terminalEvent !== null;
-}
+// Export for backward compatibility
+export type SagaEvent = ISagaEvent;

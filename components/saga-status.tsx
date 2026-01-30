@@ -179,7 +179,7 @@ export function SagaStatus({ correlationId, onClose }: SagaStatusProps) {
                         Discount:
                       </span>
                       <span className="font-medium text-green-700 dark:text-green-400">
-                        12% Applied ✓
+                        Applied ✓
                       </span>
                     </>
                   )}

@@ -1,38 +1,75 @@
-import { ObjectId } from "mongodb";
-import { getDb } from "../mongodb";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { ensureConnection } from "../mongoose";
 import { EventType } from "../../events/types";
 
+// Actor and action types
 export type ActorType = "system" | "user" | "admin";
 export type ActionSource = "saga" | "admin-panel" | "cli" | "api";
 
-export interface AuditLog {
-  _id?: ObjectId;
+// Audit log document interface
+export interface IAuditLog extends Document {
   correlationId: string;
   event: EventType;
   service: string;
   status: "success" | "failure" | "compensation";
   timestamp: string; // ISO string
   data?: Record<string, unknown>;
-  // New fields for actor tracking
   actorType: ActorType;
   actorId?: string;
   actionSource: ActionSource;
+}
+
+// Audit log schema
+const AuditLogSchema = new Schema<IAuditLog>(
+  {
+    correlationId: { type: String, required: true, index: true },
+    event: { type: String, required: true },
+    service: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["success", "failure", "compensation"],
+      required: true,
+    },
+    timestamp: { type: String, required: true, index: true },
+    data: { type: Schema.Types.Mixed },
+    actorType: {
+      type: String,
+      enum: ["system", "user", "admin"],
+      required: true,
+    },
+    actorId: { type: String },
+    actionSource: {
+      type: String,
+      enum: ["saga", "admin-panel", "cli", "api"],
+      required: true,
+    },
+  },
+  { timestamps: false, collection: "auditLogs" }, // Explicit camelCase collection name
+);
+
+// Get or create model
+function getAuditLogModel(): Model<IAuditLog> {
+  return (
+    mongoose.models.AuditLog ||
+    mongoose.model<IAuditLog>("AuditLog", AuditLogSchema)
+  );
 }
 
 /**
  * Creates a structured audit log entry
  */
 export async function createAuditLog(
-  log: Omit<AuditLog, "_id" | "timestamp">,
-): Promise<AuditLog> {
-  const db = await getDb();
+  log: Omit<IAuditLog, "_id" | "timestamp" | keyof Document>,
+): Promise<IAuditLog> {
+  await ensureConnection();
+  const AuditLog = getAuditLogModel();
 
-  const doc: AuditLog = {
+  const doc = new AuditLog({
     ...log,
     timestamp: new Date().toISOString(),
-  };
+  });
 
-  const result = await db.collection<AuditLog>("auditLogs").insertOne(doc);
+  await doc.save();
 
   // Also log to console in structured JSON format
   console.log(
@@ -49,20 +86,18 @@ export async function createAuditLog(
     }),
   );
 
-  return { ...doc, _id: result.insertedId };
+  return doc;
 }
 
 /**
  * Gets all audit logs for a correlation ID
  */
-export async function getAuditLogs(correlationId: string): Promise<AuditLog[]> {
-  const db = await getDb();
-
-  return db
-    .collection<AuditLog>("auditLogs")
-    .find({ correlationId })
-    .sort({ timestamp: 1 })
-    .toArray();
+export async function getAuditLogs(
+  correlationId: string,
+): Promise<IAuditLog[]> {
+  await ensureConnection();
+  const AuditLog = getAuditLogModel();
+  return AuditLog.find({ correlationId }).sort({ timestamp: 1 });
 }
 
 /**
@@ -73,8 +108,9 @@ export async function getRecentAuditLogs(options: {
   actorType?: ActorType;
   actionSource?: ActionSource;
   fromDate?: Date;
-}): Promise<AuditLog[]> {
-  const db = await getDb();
+}): Promise<IAuditLog[]> {
+  await ensureConnection();
+  const AuditLog = getAuditLogModel();
   const { limit = 100, actorType, actionSource, fromDate } = options;
 
   const query: Record<string, unknown> = {};
@@ -91,12 +127,7 @@ export async function getRecentAuditLogs(options: {
     query.timestamp = { $gte: fromDate.toISOString() };
   }
 
-  return db
-    .collection<AuditLog>("auditLogs")
-    .find(query)
-    .sort({ timestamp: -1 })
-    .limit(limit)
-    .toArray();
+  return AuditLog.find(query).sort({ timestamp: -1 }).limit(limit);
 }
 
 /**
@@ -104,10 +135,13 @@ export async function getRecentAuditLogs(options: {
  */
 export async function getAdminAuditLogs(
   limit: number = 50,
-): Promise<AuditLog[]> {
+): Promise<IAuditLog[]> {
   return getRecentAuditLogs({
     limit,
     actorType: "admin",
     actionSource: "admin-panel",
   });
 }
+
+// Export for backward compatibility
+export type AuditLog = IAuditLog;

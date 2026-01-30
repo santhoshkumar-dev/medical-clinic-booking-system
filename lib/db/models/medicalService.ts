@@ -1,8 +1,8 @@
-import { ObjectId } from "mongodb";
-import { getDb } from "../mongodb";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { ensureConnection } from "../mongoose";
 
-export interface MedicalService {
-  _id?: ObjectId;
+// Medical service document interface
+export interface IMedicalService extends Document {
   id: string;
   name: string;
   price: number;
@@ -13,12 +13,38 @@ export interface MedicalService {
   updatedAt: Date;
 }
 
+// Medical service schema
+const MedicalServiceSchema = new Schema<IMedicalService>(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
+    gender: {
+      type: String,
+      enum: ["male", "female", "common"],
+      required: true,
+      index: true,
+    },
+    description: { type: String, required: true },
+    isActive: { type: Boolean, default: true, index: true },
+  },
+  { timestamps: true, collection: "medicalServices" },
+);
+
+// Get or create model
+function getMedicalServiceModel(): Model<IMedicalService> {
+  return (
+    mongoose.models.MedicalService ||
+    mongoose.model<IMedicalService>("MedicalService", MedicalServiceSchema)
+  );
+}
+
 /**
  * Default services to seed the database
  */
 export const DEFAULT_SERVICES: Omit<
-  MedicalService,
-  "_id" | "createdAt" | "updatedAt"
+  IMedicalService,
+  "_id" | "createdAt" | "updatedAt" | keyof Document
 >[] = [
   // Common services
   {
@@ -124,13 +150,10 @@ export const DEFAULT_SERVICES: Omit<
 /**
  * Get all active services
  */
-export async function getAllServices(): Promise<MedicalService[]> {
-  const db = await getDb();
-  return db
-    .collection<MedicalService>("services")
-    .find({ isActive: true })
-    .sort({ gender: 1, name: 1 })
-    .toArray();
+export async function getAllServices(): Promise<IMedicalService[]> {
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  return MedicalService.find({ isActive: true }).sort({ gender: 1, name: 1 });
 }
 
 /**
@@ -138,16 +161,13 @@ export async function getAllServices(): Promise<MedicalService[]> {
  */
 export async function getServicesForGender(
   gender: "male" | "female",
-): Promise<MedicalService[]> {
-  const db = await getDb();
-  return db
-    .collection<MedicalService>("services")
-    .find({
-      isActive: true,
-      $or: [{ gender: "common" }, { gender }],
-    })
-    .sort({ gender: 1, name: 1 })
-    .toArray();
+): Promise<IMedicalService[]> {
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  return MedicalService.find({
+    isActive: true,
+    $or: [{ gender: "common" }, { gender }],
+  }).sort({ gender: 1, name: 1 });
 }
 
 /**
@@ -155,9 +175,10 @@ export async function getServicesForGender(
  */
 export async function getServiceById(
   serviceId: string,
-): Promise<MedicalService | null> {
-  const db = await getDb();
-  return db.collection<MedicalService>("services").findOne({ id: serviceId });
+): Promise<IMedicalService | null> {
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  return MedicalService.findOne({ id: serviceId });
 }
 
 /**
@@ -165,12 +186,10 @@ export async function getServiceById(
  */
 export async function getServicesByIds(
   serviceIds: string[],
-): Promise<MedicalService[]> {
-  const db = await getDb();
-  return db
-    .collection<MedicalService>("services")
-    .find({ id: { $in: serviceIds }, isActive: true })
-    .toArray();
+): Promise<IMedicalService[]> {
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  return MedicalService.find({ id: { $in: serviceIds }, isActive: true });
 }
 
 /**
@@ -179,17 +198,12 @@ export async function getServicesByIds(
 export async function updateServicePrice(
   serviceId: string,
   price: number,
-  updatedBy?: string,
 ): Promise<boolean> {
-  const db = await getDb();
-  const result = await db.collection<MedicalService>("services").updateOne(
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  const result = await MedicalService.updateOne(
     { id: serviceId },
-    {
-      $set: {
-        price,
-        updatedAt: new Date(),
-      },
-    },
+    { $set: { price } },
   );
   return result.modifiedCount > 0;
 }
@@ -198,23 +212,17 @@ export async function updateServicePrice(
  * Create or update a service
  */
 export async function upsertService(
-  service: Omit<MedicalService, "_id" | "createdAt" | "updatedAt">,
+  service: Omit<
+    IMedicalService,
+    "_id" | "createdAt" | "updatedAt" | keyof Document
+  >,
 ): Promise<void> {
-  const db = await getDb();
-  const now = new Date();
-
-  await db.collection<MedicalService>("services").updateOne(
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  await MedicalService.findOneAndUpdate(
     { id: service.id },
-    {
-      $set: {
-        ...service,
-        updatedAt: now,
-      },
-      $setOnInsert: {
-        createdAt: now,
-      },
-    },
-    { upsert: true },
+    { $set: service },
+    { upsert: true, new: true },
   );
 }
 
@@ -222,23 +230,20 @@ export async function upsertService(
  * Seed default services if none exist
  */
 export async function seedServicesIfEmpty(): Promise<boolean> {
-  const db = await getDb();
-  const count = await db
-    .collection<MedicalService>("services")
-    .countDocuments();
+  await ensureConnection();
+  const MedicalService = getMedicalServiceModel();
+  const count = await MedicalService.countDocuments();
 
   if (count === 0) {
-    const now = new Date();
-    const docs = DEFAULT_SERVICES.map((s) => ({
-      ...s,
-      createdAt: now,
-      updatedAt: now,
-    }));
-
-    await db.collection<MedicalService>("services").insertMany(docs);
-    console.log(`[Services] Seeded ${docs.length} default services`);
+    await MedicalService.insertMany(DEFAULT_SERVICES);
+    console.log(
+      `[Services] Seeded ${DEFAULT_SERVICES.length} default services`,
+    );
     return true;
   }
 
   return false;
 }
+
+// Export for backward compatibility
+export type MedicalService = IMedicalService;

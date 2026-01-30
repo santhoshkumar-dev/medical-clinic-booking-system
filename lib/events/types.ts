@@ -55,6 +55,8 @@ export interface DiscountQuotaReservedEvent extends BaseEvent {
   data: {
     quotaUsed: number;
     quotaLimit: number;
+    discountApplied?: boolean;
+    quotaExhausted?: boolean;
   };
 }
 

@@ -2,7 +2,6 @@ import { emitEvent } from "../events/eventBus";
 import {
   PricingCalculatedEvent,
   DiscountQuotaReservedEvent,
-  DiscountQuotaRejectedEvent,
   DiscountQuotaReleasedEvent,
   CompensationTriggeredEvent,
   SagaEvent,
@@ -19,17 +18,29 @@ const SERVICE_NAME = "DiscountQuotaService";
 
 /**
  * Handles PricingCalculated event - reserves discount quota if eligible
+ *
+ * BEHAVIOR:
+ * - If not discount eligible: proceed with base price
+ * - If discount eligible AND quota available: apply discount
+ * - If discount eligible BUT quota exhausted: proceed with full price (no rejection)
  */
 export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
   if (event.eventType !== "PricingCalculated") return;
 
   const pricingEvent = event as PricingCalculatedEvent;
-  const { discountEligible } = pricingEvent.data;
+  const { discountEligible, basePrice, discountAmount, finalPrice } =
+    pricingEvent.data;
+  const quotaStatus = await getQuotaStatus();
 
-  // If no discount is eligible, skip quota reservation and proceed directly
+  // Case 1: No discount eligible - proceed with base price (no quota needed)
   if (!discountEligible) {
-    // Emit a special quota reserved event (no quota actually used)
-    const quotaStatus = await getQuotaStatus();
+    // Update booking with final price = base price (no discount)
+    await updateBooking(event.correlationId, {
+      status: "quota_reserved",
+      discountApplied: false,
+      discountAmount: 0,
+      finalPrice: basePrice,
+    });
 
     await emitEvent<DiscountQuotaReservedEvent>(
       {
@@ -38,6 +49,7 @@ export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
         data: {
           quotaUsed: quotaStatus.used,
           quotaLimit: quotaStatus.limit,
+          discountApplied: false,
         },
       },
       SERVICE_NAME,
@@ -45,18 +57,47 @@ export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
     return;
   }
 
-  // Try to reserve a quota slot
+  // Case 2 & 3: Discount eligible - try to reserve quota
   const reserved = await reserveQuota(event.correlationId);
 
   if (reserved) {
-    const quotaStatus = await getQuotaStatus();
+    // Case 2: Quota available - apply discount
+    const updatedQuotaStatus = await getQuotaStatus();
 
-    // Update booking to show quota was reserved
     await updateBooking(event.correlationId, {
       status: "quota_reserved",
       discountApplied: true,
-      discountAmount: pricingEvent.data.discountAmount,
-      finalPrice: pricingEvent.data.finalPrice,
+      discountAmount: discountAmount,
+      finalPrice: finalPrice,
+    });
+
+    console.log(
+      `[${SERVICE_NAME}] Quota reserved for ${event.correlationId}, discount applied: ₹${discountAmount}`,
+    );
+
+    await emitEvent<DiscountQuotaReservedEvent>(
+      {
+        correlationId: event.correlationId,
+        eventType: "DiscountQuotaReserved",
+        data: {
+          quotaUsed: updatedQuotaStatus.used,
+          quotaLimit: updatedQuotaStatus.limit,
+          discountApplied: true,
+        },
+      },
+      SERVICE_NAME,
+    );
+  } else {
+    // Case 3: Quota exhausted - proceed with FULL PRICE (no rejection)
+    console.log(
+      `[${SERVICE_NAME}] Quota exhausted for ${event.correlationId}, proceeding with full price: ₹${basePrice}`,
+    );
+
+    await updateBooking(event.correlationId, {
+      status: "quota_reserved",
+      discountApplied: false,
+      discountAmount: 0,
+      finalPrice: basePrice, // Full price, no discount
     });
 
     await emitEvent<DiscountQuotaReservedEvent>(
@@ -66,32 +107,11 @@ export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
         data: {
           quotaUsed: quotaStatus.used,
           quotaLimit: quotaStatus.limit,
+          discountApplied: false,
+          quotaExhausted: true,
         },
       },
       SERVICE_NAME,
-    );
-  } else {
-    // Quota exhausted - reject immediately (no compensation needed, saga stops here)
-    await updateBooking(event.correlationId, {
-      status: "quota_rejected",
-    });
-
-    await emitEvent<DiscountQuotaRejectedEvent>(
-      {
-        correlationId: event.correlationId,
-        eventType: "DiscountQuotaRejected",
-        data: {
-          reason: "Daily discount quota reached. Please try again tomorrow.",
-        },
-      },
-      SERVICE_NAME,
-    );
-
-    // Fail the booking (no compensation needed as nothing was committed yet)
-    await failBooking(
-      event.correlationId,
-      "Daily discount quota reached. Please try again tomorrow.",
-      false,
     );
   }
 }

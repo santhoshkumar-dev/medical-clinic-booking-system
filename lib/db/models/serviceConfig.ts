@@ -1,17 +1,37 @@
-import { ObjectId } from "mongodb";
-import { getDb } from "../mongodb";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { ensureConnection } from "../mongoose";
 
+// Service price type
 export interface ServicePrice {
   serviceId: string;
   price: number;
 }
 
-export interface SystemConfig {
-  _id?: ObjectId;
+// System config document interface
+export interface ISystemConfig extends Document {
   key: string;
   value: unknown;
-  updatedAt: Date;
   updatedBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// System config schema
+const SystemConfigSchema = new Schema<ISystemConfig>(
+  {
+    key: { type: String, required: true, unique: true, index: true },
+    value: { type: Schema.Types.Mixed, required: true },
+    updatedBy: { type: String },
+  },
+  { timestamps: true, collection: "systemConfigs" },
+);
+
+// Get or create model
+function getSystemConfigModel(): Model<ISystemConfig> {
+  return (
+    mongoose.models.SystemConfig ||
+    mongoose.model<ISystemConfig>("SystemConfig", SystemConfigSchema)
+  );
 }
 
 const DEFAULT_DISCOUNT_PERCENTAGE = 12;
@@ -20,11 +40,9 @@ const DEFAULT_DISCOUNT_PERCENTAGE = 12;
  * Get a system configuration value
  */
 export async function getConfig<T>(key: string, defaultValue: T): Promise<T> {
-  const db = await getDb();
-
-  const config = await db
-    .collection<SystemConfig>("systemConfig")
-    .findOne({ key });
+  await ensureConnection();
+  const SystemConfig = getSystemConfigModel();
+  const config = await SystemConfig.findOne({ key });
 
   if (!config) {
     return defaultValue;
@@ -41,18 +59,13 @@ export async function setConfig<T>(
   value: T,
   updatedBy?: string,
 ): Promise<void> {
-  const db = await getDb();
+  await ensureConnection();
+  const SystemConfig = getSystemConfigModel();
 
-  await db.collection<SystemConfig>("systemConfig").updateOne(
+  await SystemConfig.findOneAndUpdate(
     { key },
-    {
-      $set: {
-        value,
-        updatedAt: new Date(),
-        updatedBy,
-      },
-    },
-    { upsert: true },
+    { $set: { value, updatedBy } },
+    { upsert: true, new: true },
   );
 }
 
@@ -121,3 +134,6 @@ export async function updateServicePrice(
 
   await setServicePrices(prices, adminId);
 }
+
+// Export for backward compatibility
+export type SystemConfig = ISystemConfig;

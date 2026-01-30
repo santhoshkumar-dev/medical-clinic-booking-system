@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db/mongodb";
+import mongoose from "mongoose";
+import { ensureConnection } from "@/lib/db/mongoose";
+import { getISTDateKey } from "@/lib/db/models/discountQuota";
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureConnection();
     const body = await request.json();
     const { action, quota } = body;
+    const dateKey = getISTDateKey();
+
+    // Get collection directly through mongoose connection
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error("Database not connected");
+    }
 
     if (action === "reset-quota") {
-      const db = await getDb();
-      const today = new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      });
-
-      await db.collection("discountQuota").deleteOne({ dateKey: today });
+      await db.collection("discountquotas").deleteOne({ dateKey });
 
       return NextResponse.json({
         success: true,
@@ -21,20 +26,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "set-quota" && typeof quota === "number") {
-      const db = await getDb();
-      const today = new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      });
-
-      await db.collection("discountQuota").updateOne(
-        { dateKey: today },
+      await db.collection("discountquotas").updateOne(
+        { dateKey },
         {
           $set: {
             limit: quota,
             updatedAt: new Date(),
           },
           $setOnInsert: {
-            dateKey: today,
+            dateKey,
             used: 0,
             reservations: [],
             createdAt: new Date(),
@@ -50,14 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "exhaust-quota") {
-      const db = await getDb();
-      const today = new Date().toLocaleDateString("en-CA", {
-        timeZone: "Asia/Kolkata",
-      });
-
       // Set used = limit to exhaust quota
-      await db.collection("discountQuota").updateOne(
-        { dateKey: today },
+      await db.collection("discountquotas").updateOne(
+        { dateKey },
         {
           $set: {
             used: 100,
@@ -65,7 +60,7 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           },
           $setOnInsert: {
-            dateKey: today,
+            dateKey,
             reservations: [],
             createdAt: new Date(),
           },

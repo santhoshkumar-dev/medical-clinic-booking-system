@@ -1,0 +1,204 @@
+[{
+  "_id": {
+    "$oid": "697affb48dd68c993525a091"
+  },
+  "id": "general-consultation",
+  "name": "General Consultation",
+  "price": 500,
+  "gender": "common",
+  "description": "Comprehensive health check-up with a general physician",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a092"
+  },
+  "id": "blood-test",
+  "name": "Blood Test Panel",
+  "price": 300,
+  "gender": "common",
+  "description": "Complete blood count and basic metabolic panel",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a093"
+  },
+  "id": "x-ray",
+  "name": "X-Ray Imaging",
+  "price": 800,
+  "gender": "common",
+  "description": "Digital X-ray imaging for diagnostic purposes",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a094"
+  },
+  "id": "ecg",
+  "name": "ECG/EKG Test",
+  "price": 400,
+  "gender": "common",
+  "description": "Electrocardiogram for heart rhythm analysis",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a095"
+  },
+  "id": "ultrasound",
+  "name": "Ultrasound Scan",
+  "price": 1000,
+  "gender": "common",
+  "description": "Non-invasive ultrasound imaging",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a096"
+  },
+  "id": "mammography",
+  "name": "Mammography Screening",
+  "price": 1200,
+  "gender": "female",
+  "description": "Breast cancer screening with digital mammography",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a097"
+  },
+  "id": "gynecology",
+  "name": "Gynecology Consultation",
+  "price": 700,
+  "gender": "female",
+  "description": "Comprehensive gynecological examination",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a098"
+  },
+  "id": "pap-smear",
+  "name": "Pap Smear Test",
+  "price": 550,
+  "gender": "female",
+  "description": "Cervical cancer screening test",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a099"
+  },
+  "id": "bone-density-female",
+  "name": "Bone Density Scan",
+  "price": 900,
+  "gender": "female",
+  "description": "DEXA scan for osteoporosis screening",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a09a"
+  },
+  "id": "prostate-exam",
+  "name": "Prostate Examination",
+  "price": 600,
+  "gender": "male",
+  "description": "Prostate health check with PSA test",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a09b"
+  },
+  "id": "testosterone-test",
+  "name": "Testosterone Level Test",
+  "price": 450,
+  "gender": "male",
+  "description": "Hormone level assessment",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "697affb48dd68c993525a09c"
+  },
+  "id": "cardiac-stress",
+  "name": "Cardiac Stress Test",
+  "price": 1500,
+  "gender": "male",
+  "description": "Treadmill stress test for heart health",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-01-29T06:35:32.860Z"
+  },
+  "updatedAt": {
+    "$date": "2026-01-29T06:36:36.490Z"
+  }
+}]

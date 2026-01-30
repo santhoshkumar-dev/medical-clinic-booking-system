@@ -1,4 +1,5 @@
-import { getDb } from "../db/mongodb";
+import mongoose from "mongoose";
+import { ensureConnection } from "../db/mongoose";
 import { emitEvent } from "../events/eventBus";
 import { eventBus } from "../events/eventBus";
 import {
@@ -6,7 +7,11 @@ import {
   AdminActionLoggedEvent,
 } from "../events/types";
 import { generateCorrelationId } from "../events/correlationId";
-import { getQuotaStatus, getISTDateKey } from "../db/models/discountQuota";
+import {
+  getQuotaStatus,
+  getISTDateKey,
+  updateQuotaLimit,
+} from "../db/models/discountQuota";
 
 const SERVICE_NAME = "AdminService";
 
@@ -57,18 +62,8 @@ export async function updateDiscountQuota(
 export async function handleDiscountQuotaUpdated(
   event: DiscountQuotaUpdatedEvent,
 ): Promise<void> {
-  const db = await getDb();
-  const dateKey = getISTDateKey();
-
-  // Update the quota limit in MongoDB
-  await db.collection("discountQuota").updateOne(
-    { dateKey },
-    {
-      $set: { limit: event.data.newLimit },
-      $setOnInsert: { used: 0, reservations: [] },
-    },
-    { upsert: true },
-  );
+  // Use the Mongoose model function to update
+  await updateQuotaLimit(event.data.newLimit);
 
   console.log(
     `[${SERVICE_NAME}] Quota updated: ${event.data.previousLimit} -> ${event.data.newLimit} by admin ${event.data.adminId}`,

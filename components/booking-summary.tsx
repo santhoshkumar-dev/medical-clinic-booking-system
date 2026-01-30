@@ -22,6 +22,14 @@ interface BookingSummaryProps {
   disabled?: boolean;
 }
 
+interface QuotaStatus {
+  date: string;
+  exhausted: boolean;
+  used: number;
+  limit: number;
+  available: number;
+}
+
 export function BookingSummary({
   customerName,
   gender,
@@ -32,24 +40,35 @@ export function BookingSummary({
   disabled,
 }: BookingSummaryProps) {
   const [discountPercentage, setDiscountPercentage] = useState<number>(12);
+  const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch discount percentage from API
+  // Fetch discount percentage and quota status from API
   useEffect(() => {
-    async function fetchDiscount() {
+    async function fetchData() {
       try {
-        const res = await fetch("/api/config/discount");
-        if (res.ok) {
-          const data = await res.json();
+        // Fetch both in parallel
+        const [discountRes, quotaRes] = await Promise.all([
+          fetch("/api/config/discount"),
+          fetch("/api/quota/status"),
+        ]);
+
+        if (discountRes.ok) {
+          const data = await discountRes.json();
           setDiscountPercentage(data.discountPercentage || 12);
         }
+
+        if (quotaRes.ok) {
+          const data = await quotaRes.json();
+          setQuotaStatus(data); // API returns quota object directly
+        }
       } catch (err) {
-        console.error("Failed to fetch discount config:", err);
+        console.error("Failed to fetch config:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchDiscount();
+    fetchData();
   }, []);
 
   const basePrice = services.reduce((sum, s) => sum + s.price, 0);
@@ -64,8 +83,17 @@ export function BookingSummary({
   const isValueDiscount = basePrice > 1000;
   const discountEligible = isBirthdayDiscount || isValueDiscount;
 
+  // Check if quota is exhausted (default to true if no data yet)
+  const quotaExhausted = quotaStatus?.exhausted ?? true;
+  const willGetDiscount = discountEligible && !quotaExhausted;
+
+  console.log("willGetDiscount", willGetDiscount);
+  console.log("quotaExhausted", quotaExhausted);
+  console.log("discountEligible", discountEligible);
+  console.log("quotaStatus", quotaStatus);
+
   const discountDecimal = discountPercentage / 100;
-  const discountAmount = discountEligible
+  const discountAmount = willGetDiscount
     ? Math.round(basePrice * discountDecimal)
     : 0;
   const finalPrice = basePrice - discountAmount;
@@ -131,15 +159,27 @@ export function BookingSummary({
               <span>₹{basePrice.toLocaleString("en-IN")}</span>
             </div>
 
-            {discountEligible && (
+            {willGetDiscount && (
               <div className="flex justify-between text-green-600">
                 <span className="flex items-center gap-2">
                   Discount ({loading ? "..." : `${discountPercentage}%`})
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs bg-green-50">
                     {isBirthdayDiscount ? "🎂 Birthday" : "💰 Order Value"}
                   </Badge>
                 </span>
                 <span>-₹{discountAmount.toLocaleString("en-IN")}</span>
+              </div>
+            )}
+
+            {discountEligible && quotaExhausted && !loading && (
+              <div className="flex justify-between text-amber-600">
+                <span className="flex items-center gap-2">
+                  Discount Not Available
+                  <Badge variant="outline" className="text-xs bg-amber-50">
+                    Quota Exhausted
+                  </Badge>
+                </span>
+                <span>₹0</span>
               </div>
             )}
           </div>
@@ -150,7 +190,7 @@ export function BookingSummary({
               <span className="text-2xl font-bold text-primary">
                 ₹{finalPrice.toLocaleString("en-IN")}
               </span>
-              {discountEligible && (
+              {willGetDiscount && (
                 <p className="text-xs text-green-600">
                   You save ₹{discountAmount.toLocaleString("en-IN")}!
                 </p>
@@ -159,19 +199,39 @@ export function BookingSummary({
           </div>
         </div>
 
-        {/* Discount Info */}
-        {discountEligible && (
+        {/* Discount Status Info */}
+        {loading ? (
+          <div className="bg-gray-50 dark:bg-gray-950/30 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Checking discount eligibility...
+            </p>
+          </div>
+        ) : willGetDiscount ? (
           <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
             <p className="text-sm text-green-700 dark:text-green-400">
               {isBirthdayDiscount
-                ? `🎉 Happy Birthday! You're eligible for a ${discountPercentage}% birthday discount.`
-                : `🎁 Order value exceeds ₹1,000. You're eligible for a ${discountPercentage}% discount.`}
+                ? `🎉 Happy Birthday! You're getting a ${discountPercentage}% birthday discount!`
+                : `🎁 Order value exceeds ₹1,000. You're getting a ${discountPercentage}% discount!`}
             </p>
-            <p className="text-xs text-green-600 dark:text-green-500 mt-1">
-              * Subject to daily discount quota availability
+            {quotaStatus && (
+              <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                Quota: {quotaStatus.available} of {quotaStatus.limit} available
+                today
+              </p>
+            )}
+          </div>
+        ) : discountEligible && quotaExhausted ? (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              ⚠️ Daily discount quota has been exhausted.
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+              You would have qualified for a {discountPercentage}% discount, but
+              the daily limit has been reached. You'll be charged the full price
+              of ₹{basePrice.toLocaleString("en-IN")}.
             </p>
           </div>
-        )}
+        ) : null}
 
         {/* Actions */}
         <div className="flex gap-3 pt-2">
@@ -188,7 +248,7 @@ export function BookingSummary({
             onClick={onSubmit}
             disabled={disabled || services.length === 0}
           >
-            {disabled ? "Processing..." : "Submit Request"}
+            {disabled ? "Processing..." : "Confirm & Pay"}
           </Button>
         </div>
       </CardContent>
