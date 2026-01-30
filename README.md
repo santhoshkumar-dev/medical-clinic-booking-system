@@ -97,6 +97,13 @@ By default, the system applies a discount (e.g., 12%) if **either**:
 | Database  | MongoDB                             |
 | Event Bus | MongoDB-backed (in-app)             |
 
+## 📚 Documentation
+
+| Document                                 | Description                                    |
+| ---------------------------------------- | ---------------------------------------------- |
+| [ASSUMPTIONS.md](./ASSUMPTIONS.md)       | All assumptions made during implementation     |
+| [TEST_SCENARIOS.md](./TEST_SCENARIOS.md) | Detailed test scenarios with expected outcomes |
+
 ## 🚀 Quick Start
 
 ### 1. Configure Environment
