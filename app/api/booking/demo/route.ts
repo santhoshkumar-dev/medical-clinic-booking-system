@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initiateBooking } from "@/lib/services/bookingService";
-import { initializeSaga } from "@/lib/services/sagaOrchestrator";
 import {
   getServicesByIds,
   seedServicesIfEmpty,
 } from "@/lib/db/models/medicalService";
 
-// Initialize SAGA on first request
-initializeSaga();
+// SAGA is initialized at server startup via instrumentation.ts
 
 /**
  * Demo endpoint for CLI testing - bypasses authentication.

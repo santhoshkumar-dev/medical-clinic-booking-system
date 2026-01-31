@@ -17,6 +17,7 @@
     "better-auth": "^1.4.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ioredis": "^5.9.2",
     "lucide-react": "^0.563.0",
     "mongodb": "^7.0.0",
     "mongoose": "^9.1.5",

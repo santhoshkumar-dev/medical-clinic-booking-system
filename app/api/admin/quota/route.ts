@@ -5,10 +5,8 @@ import {
   updateDiscountQuota,
   logAdminAction,
 } from "@/lib/services/adminService";
-import { initializeSaga } from "@/lib/services/sagaOrchestrator";
 
-// Initialize SAGA for event handling
-initializeSaga();
+// SAGA is initialized at server startup via instrumentation.ts
 
 export async function GET() {
   try {

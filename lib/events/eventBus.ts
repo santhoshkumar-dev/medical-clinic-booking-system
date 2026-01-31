@@ -6,42 +6,98 @@ import {
   EventType,
   AnyEvent,
   EventHandler,
-  EventSubscription,
 } from "./types";
 import { appendSagaEvent } from "../db/models/sagaEvent";
 import { createAuditLog, ActorType, ActionSource } from "../db/models/auditLog";
+import { getPublisher, getSubscriber } from "../db/redis";
+
+// Channel prefix for event types
+const CHANNEL_PREFIX = "saga:events:";
 
 /**
- * MongoDB-backed Event Bus for SAGA choreography and Admin events
+ * Redis-backed Event Bus for SAGA choreography and Admin events
  *
- * This event bus:
- * 1. Persists all events to MongoDB for durability and tracing
- * 2. Routes events to subscribed handlers
- * 3. Provides structured logging for all events
+ * This event bus uses Redis Pub/Sub:
+ * 1. Publishes events to Redis channels
+ * 2. Subscribers receive events via Redis subscription
+ * 3. All events are persisted to MongoDB for durability
  */
-class EventBus {
-  private subscriptions: Map<EventType, EventHandler[]> = new Map();
+class RedisEventBus {
+  private handlers: Map<EventType, EventHandler[]> = new Map();
+  private isSubscribed: boolean = false;
 
   /**
    * Subscribe a handler to a specific event type
    */
   subscribe(eventType: EventType, handler: EventHandler): void {
-    const handlers = this.subscriptions.get(eventType) || [];
+    const handlers = this.handlers.get(eventType) || [];
     handlers.push(handler);
-    this.subscriptions.set(eventType, handlers);
+    this.handlers.set(eventType, handlers);
   }
 
   /**
-   * Subscribe multiple handlers at once
+   * Initialize Redis subscriber to listen for events
+   * This should be called once at startup
    */
-  subscribeAll(subscriptions: EventSubscription[]): void {
-    for (const { eventType, handler } of subscriptions) {
-      this.subscribe(eventType, handler);
+  async initializeSubscriber(): Promise<void> {
+    if (this.isSubscribed) return;
+
+    const subscriber = getSubscriber();
+
+    // Subscribe to all event channels
+    const allEventTypes: EventType[] = [
+      // SAGA events
+      "BookingRequested",
+      "PricingCalculated",
+      "DiscountQuotaReserved",
+      "DiscountQuotaRejected",
+      "PaymentCompleted",
+      "PaymentFailed",
+      "BookingConfirmed",
+      "BookingFailed",
+      "CompensationTriggered",
+      "DiscountQuotaReleased",
+      "PaymentReversed",
+      // Admin events
+      "AdminAuthenticated",
+      "DiscountQuotaUpdated",
+      "AdminActionLogged",
+    ];
+
+    // Subscribe to each channel
+    for (const eventType of allEventTypes) {
+      await subscriber.subscribe(`${CHANNEL_PREFIX}${eventType}`);
     }
+
+    // Handle incoming messages
+    subscriber.on("message", async (channel, message) => {
+      try {
+        const eventType = channel.replace(CHANNEL_PREFIX, "") as EventType;
+        const event = JSON.parse(message);
+
+        // Convert timestamp string back to Date
+        event.timestamp = new Date(event.timestamp);
+
+        // Call all registered handlers for this event type
+        const handlers = this.handlers.get(eventType) || [];
+        for (const handler of handlers) {
+          try {
+            await handler(event);
+          } catch (error) {
+            console.error(`[EventBus] Handler error for ${eventType}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error("[EventBus] Message parsing error:", error);
+      }
+    });
+
+    this.isSubscribed = true;
+    console.log("[EventBus] Redis subscriber initialized");
   }
 
   /**
-   * Publish an event - persists to MongoDB and notifies all subscribers
+   * Publish an event - persists to MongoDB and publishes to Redis
    */
   async publish(
     event: AnyEvent,
@@ -79,23 +135,21 @@ class EventBus {
       actionSource,
     });
 
-    // 3. Notify all subscribers (fire and forget for choreography)
-    const handlers = this.subscriptions.get(event.eventType) || [];
+    // 3. Publish to Redis channel
+    const publisher = getPublisher();
+    const channel = `${CHANNEL_PREFIX}${event.eventType}`;
+    const message = JSON.stringify(event);
 
-    for (const handler of handlers) {
-      try {
-        await handler(event);
-      } catch (error) {
-        console.error(`Error in handler for ${event.eventType}:`, error);
-      }
-    }
+    await publisher.publish(channel, message);
+
+    console.log(`[EventBus] Published ${event.eventType} to Redis`);
   }
 
   /**
    * Get all subscriptions (for debugging)
    */
   getSubscriptions(): Map<EventType, EventHandler[]> {
-    return this.subscriptions;
+    return this.handlers;
   }
 
   /**
@@ -175,7 +229,7 @@ class EventBus {
 }
 
 // Singleton instance
-export const eventBus = new EventBus();
+export const eventBus = new RedisEventBus();
 
 /**
  * Helper function to create and publish an event

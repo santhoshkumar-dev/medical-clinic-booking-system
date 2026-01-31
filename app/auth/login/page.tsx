@@ -65,6 +65,11 @@ export default function LoginPage() {
               </div>
             )}
 
+            <div className="mb-4">
+              <p className="text-sm text-red-500">Email: test@email.com</p>
+              <p className="text-sm text-red-500">Password: Test@123</p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

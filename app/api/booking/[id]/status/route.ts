@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBookingByCorrelationId } from "@/lib/db/models/booking";
 import { getSagaEvents } from "@/lib/db/models/sagaEvent";
-import { initializeSaga } from "@/lib/services/sagaOrchestrator";
 
-// Initialize SAGA on first request
-initializeSaga();
+// SAGA is initialized at server startup via instrumentation.ts
 
 export async function GET(
   request: NextRequest,
@@ -30,8 +28,10 @@ export async function GET(
     // Get saga events for this booking
     const events = await getSagaEvents(correlationId);
 
-    // Determine if saga is complete
-    const isComplete = ["confirmed", "failed"].includes(booking.status);
+    // Determine if saga is complete (terminal states)
+    const isComplete = ["confirmed", "failed", "payment_failed"].includes(
+      booking.status,
+    );
 
     return NextResponse.json({
       correlationId,

@@ -18,8 +18,11 @@ let initialized = false;
 /**
  * Initializes the SAGA choreography by registering all event subscriptions
  * This sets up the event-driven workflow where each service reacts to events
+ *
+ * Flow: Events are published to Redis Pub/Sub channels
+ *       Handlers receive events via Redis subscription
  */
-export function initializeSaga(): void {
+export async function initializeSaga(): Promise<void> {
   if (initialized) {
     return;
   }
@@ -53,8 +56,11 @@ export function initializeSaga(): void {
   // Initialize admin event handlers
   initializeAdminSubscriptions();
 
+  // Start listening for Redis events
+  await eventBus.initializeSubscriber();
+
   initialized = true;
-  console.log("[SAGA] Choreography initialized with all event subscriptions");
+  console.log("[SAGA] Choreography initialized with Redis Pub/Sub");
 }
 
 /**

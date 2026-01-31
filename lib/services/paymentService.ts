@@ -8,6 +8,7 @@ import {
   SagaEvent,
 } from "../events/types";
 import { updateBooking, getBookingByCorrelationId } from "../db/models/booking";
+import { failBooking } from "./bookingService";
 import { v4 as uuidv4 } from "uuid";
 
 const SERVICE_NAME = "PaymentService";
@@ -121,6 +122,13 @@ export async function handleDiscountQuotaReserved(
           },
         },
         SERVICE_NAME,
+      );
+    } else {
+      // No compensation needed - directly fail the booking
+      await failBooking(
+        event.correlationId,
+        paymentResult.error!,
+        false, // no compensation executed
       );
     }
   }

@@ -85,6 +85,11 @@ export default function AdminLoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <p className="text-sm text-red-500">Admin Email: admin@email.com</p>
+            <p className="text-sm text-red-500">Admin Password: Test@123</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">

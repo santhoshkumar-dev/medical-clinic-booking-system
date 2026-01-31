@@ -94,7 +94,8 @@ export function SagaStatus({ correlationId, onClose }: SagaStatusProps) {
   }, [correlationId]);
 
   const isSuccess = booking?.status === "confirmed";
-  const isFailed = booking?.status === "failed";
+  const isFailed =
+    booking?.status === "failed" || booking?.status === "payment_failed";
 
   return (
     <Card className="w-full">
