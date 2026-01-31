@@ -2,188 +2,210 @@
 
 A production-quality medical clinic booking system demonstrating **SAGA Choreography** pattern with event-driven architecture, compensation logic, and real-time status tracking.
 
+## 🌐 Live Demo
+
+**Production URL:** [https://medical-clinic-booking-system.vercel.app/](https://medical-clinic-booking-system.vercel.app/)
+
+## 📹 Video Demonstrations
+
+| Video                | Description                            | Link                                                                                        |
+| -------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Terminal Demo**    | 3 test scenarios with real-time status | [Watch](https://drive.google.com/file/d/1KiNvUh7cLHFciR_Wb-AZQTIhtKxXoQ6C/view?usp=sharing) |
+| **Code Explanation** | Architecture walkthrough               | [Watch](https://drive.google.com/file/d/1SkIJh2uBRtlE6WUy0bFzBqkhN1UrbTKt/view?usp=sharing) |
+| **DevOps Logs**      | Backend logs & compensation flow       | [Watch](https://drive.google.com/file/d/1QhqoYJpeXQzEoeeDLVNVzLtfIZ_3zWM8/view?usp=sharing) |
+
+---
+
 ## 🎯 Architecture Overview
 
-This system implements a **cloud-style event-driven backend** that processes medical service booking requests with:
+This system implements a **cloud-style event-driven backend** using:
 
-- **Distributed transaction flow** using SAGA pattern
-- **Choreography-based coordination** (no central orchestrator)
-- **Explicit compensation actions** for failure scenarios
-- **Structured, traceable logs** with correlation IDs
+- **SAGA Choreography** with Redis Pub/Sub
+- **Compensation logic** for failure handling
+- **Structured logging** with correlation IDs
 - **Real-time status updates** via polling
 - **Role-based Authentication** via Better Auth
-- **Dynamic Configuration** for prices and discount rules
 
 ```mermaid
-graph TB
-    subgraph "Frontend (Next.js + shadcn/ui)"
+graph LR
+    subgraph Frontend
         UI[Booking UI]
-        AdminUI[Admin Dashboard]
-        HistoryUI[User History]
     end
 
-    subgraph "API Routes"
+    subgraph API
         API["/api/booking"]
-        STATUS["/api/booking/[id]/status"]
-        ADMIN_API["/api/admin/*"]
     end
 
-    subgraph "Event Bus (MongoDB-backed)"
+    subgraph "Redis Pub/Sub"
         EB[(Event Bus)]
     end
 
-    subgraph "Services (SAGA Participants)"
+    subgraph Services
         BS[BookingService]
         PS[PricingService]
         DQS[DiscountQuotaService]
         PAY[PaymentService]
         CS[ConfirmationService]
-        ALS[AuditLogService]
     end
 
-    subgraph "Config Storage"
-        DB[(MongoDB)]
-    end
-
-    UI --> API
-    AdminUI --> ADMIN_API
-    ADMIN_API --> DB
-    API --> BS
-    BS --> EB
-    EB --> PS & DQS & PAY & CS & ALS
-    PS & DQS --> DB
+    UI --> API --> BS --> EB
+    EB --> PS --> EB
+    EB --> DQS --> EB
+    EB --> PAY --> EB
+    EB --> CS
 ```
+
+---
 
 ## 📋 Business Rules
 
-### R1 - Dynamic Discount Rule
+### R1 - Discount Eligibility
 
-By default, the system applies a discount (e.g., 12%) if **either**:
+Apply 12% discount if:
 
 - User is **female** AND today is her **birthday**
 - OR total **base price > ₹1,000**
 
-> [!NOTE]
-> The exact discount percentage is **dynamically configurable** via the Admin Panel.
-
 ### R2 - Daily Discount Quota
 
-- System-wide limit: **Configurable per day** (e.g., 100)
-- Tracked in MongoDB with IST timezone
-- Resets at midnight IST
-- When exhausted → booking rejected immediately
+- System-wide limit (configurable, default: 100)
+- Resets at **midnight IST**
+- When exhausted → proceeds with **full price** (no rejection)
+
+---
 
 ## ⚡ Event Flow
 
 ### Happy Path
 
 ```
-[BookingRequested] → [PricingCalculated] → [DiscountQuotaReserved] → [PaymentCompleted] → [BookingConfirmed]
+BookingRequested → PricingCalculated → DiscountQuotaReserved → PaymentCompleted → BookingConfirmed
 ```
 
-### Compensation Path (Payment Failure)
+### Compensation Path (Payment Failure with Discount)
 
 ```
-[BookingRequested] → [PricingCalculated] → [DiscountQuotaReserved] → [PaymentFailed] → [CompensationTriggered] → [DiscountQuotaReleased] → [BookingFailed]
+BookingRequested → PricingCalculated → DiscountQuotaReserved → PaymentFailed → CompensationTriggered → DiscountQuotaReleased → BookingFailed
 ```
+
+---
 
 ## 🛠️ Tech Stack
 
-| Layer     | Technology                          |
-| --------- | ----------------------------------- |
-| Frontend  | Next.js 15 (App Router) + shadcn/ui |
-| Backend   | Next.js API Routes + Server Actions |
-| Auth      | Better Auth (MongoDB Adapter)       |
-| Database  | MongoDB                             |
-| Event Bus | MongoDB-backed (in-app)             |
+| Layer      | Technology                          |
+| ---------- | ----------------------------------- |
+| Frontend   | Next.js 16 (App Router) + shadcn/ui |
+| Backend    | Next.js API Routes                  |
+| Event Bus  | **Redis Pub/Sub**                   |
+| Database   | MongoDB                             |
+| Auth       | Better Auth                         |
+| Deployment | Vercel + MongoDB Atlas              |
 
-## 📚 Documentation
-
-| Document                                 | Description                                    |
-| ---------------------------------------- | ---------------------------------------------- |
-| [ASSUMPTIONS.md](./ASSUMPTIONS.md)       | All assumptions made during implementation     |
-| [TEST_SCENARIOS.md](./TEST_SCENARIOS.md) | Detailed test scenarios with expected outcomes |
+---
 
 ## 🚀 Quick Start
 
-### 1. Configure Environment
+### Prerequisites
+
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Redis (local or Upstash)
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment
 
 Create `.env.local`:
 
 ```env
+# MongoDB
 MONGODB_URI=mongodb://localhost:27017/medical-clinic
-PAYMENT_SIMULATION_MODE=success # success, fail, or random
+
+# Redis (for Event Bus)
+REDIS_URL=redis://localhost:6379
+
+# Payment Simulation
+PAYMENT_SIMULATION_MODE=success  # success, fail, or random
+
+# Better Auth
 BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
 BETTER_AUTH_URL=http://localhost:3000
 ```
 
-### 2. Run Development Server
+### 3. Run Development Server
 
 ```bash
-npm install
 npm run dev
 ```
 
-### 3. Initialize Admin Account
+### 4. Seed Admin Account (Optional)
 
 ```bash
 npx ts-node scripts/seed-admin.ts
 ```
 
-Then visit `/admin/login` to sign up with the seeded email and set your password.
-
-## 🌟 Key Features
-
-### � User Experience
-
-- **Persistent Booking**: Progress is automatically saved to `localStorage`, allowing users to resume even after a page refresh.
-- **Navigable Steps**: Clickable progress indicators allow users to move back and forth between Patient Info, Services, and Summary.
-- **Booking History**: Users can log in to view their past appointments and their real-time SAGA status.
-
-### 👮 Admin Dashboard
-
-- **Live Stats**: Real-time monitoring of booking statuses, event counts, and quota usage.
-- **Service Management**: Dynamically update medical service prices and descriptions.
-- **Discount Controls**: Adjust the global discount percentage and daily quota limits on the fly.
-- **Audit Logs**: Comprehensive logs for all admin actions and system events.
-
-### 🔒 Security & Scoping
-
-- **Role-Based Access (RBAC)**: Strict separation between `user` and `admin` roles.
-- **Isolated Scopes**: Admins cannot create bookings as themselves; they are prompted to use a regular user account for the booking flow.
+---
 
 ## 📁 Project Structure
 
 ```
 ├── app/
-│   ├── (auth)/         # Login and signup pages
-│   ├── admin/          # Dashboard, services, and log management
 │   ├── api/
-│   │   ├── admin/      # Protected admin-only APIs
-│   │   ├── booking/    # SAGA initiation and status tracking
-│   │   ├── services/   # Medical service catalog
-│   │   └── config/     # Dynamic configuration endpoints
-│   ├── history/        # User personal booking history
-│   └── page.tsx        # Responsive booking flow
-├── components/
-│   ├── admin/          # Admin-specific UI components
-│   ├── ui/             # shadcn reusable components
-│   └── user-nav.tsx    # Role-aware navigation
+│   │   ├── booking/        # SAGA initiation & status
+│   │   ├── admin/          # Admin APIs (quota, services)
+│   │   └── auth/           # Better Auth endpoints
+│   ├── admin/              # Admin dashboard
+│   └── history/            # User booking history
+├── components/             # React UI components
 ├── lib/
-│   ├── auth/           # Better Auth configuration and server/client utils
 │   ├── db/
-│   │   └── models/     # MongoDB schemas (Booking, Quota, Config, Logs)
-│   ├── events/         # Event Bus and SAGA event types
-│   └── services/       # Domain logic (Pricing, Payment, SAGA Orchestrator)
-└── scripts/            # Database seeding and migration scripts
+│   │   ├── models/         # Mongoose schemas
+│   │   ├── mongoose.ts     # MongoDB connection
+│   │   └── redis.ts        # Redis connection
+│   ├── events/
+│   │   ├── eventBus.ts     # Redis Pub/Sub implementation
+│   │   └── types.ts        # Event type definitions
+│   └── services/           # SAGA participants
+│       ├── sagaOrchestrator.ts
+│       ├── pricingService.ts
+│       ├── discountQuotaService.ts
+│       ├── paymentService.ts
+│       └── confirmationService.ts
+├── cli/                    # Terminal client (excluded from build)
+└── instrumentation.ts      # Server startup initialization
 ```
 
-## 👩‍💼 Admin Capabilities
+---
 
-- **discounts/page.tsx**: Manage daily quota limits via event-driven updates.
-- **services/page.tsx**: Edit service prices and set global discount percentages.
-- **bookings/page.tsx**: Real-time event timeline for troubleshooting SAGA flows.
-- **logs/page.tsx**: Filterable audit trail for accountability.
+## 🧪 Test Scenarios
+
+### 1. Positive Case ✅
+
+Female user with birthday discount, payment succeeds → Booking confirmed
+
+### 2. Negative Case #1 ❌
+
+Payment fails WITH discount applied → Compensation releases quota
+
+### 3. Negative Case #2 ❌
+
+Daily quota exhausted → Proceeds with full price (no discount)
+
+---
+
+## 📚 Documentation
+
+| Document                                         | Description                     |
+| ------------------------------------------------ | ------------------------------- |
+| [ASSUMPTIONS.md](./ASSUMPTIONS.md)               | Design decisions & assumptions  |
+| [TEST_SCENARIOS.md](./TEST_SCENARIOS.md)         | Detailed test case descriptions |
+| [ARCHITECTURE_GUIDE.md](./ARCHITECTURE_GUIDE.md) | Code architecture deep dive     |
+
+---
 
 ## 📄 License
 
