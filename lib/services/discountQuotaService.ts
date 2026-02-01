@@ -22,7 +22,7 @@ const SERVICE_NAME = "DiscountQuotaService";
  * BEHAVIOR:
  * - If not discount eligible: proceed with base price
  * - If discount eligible AND quota available: apply discount
- * - If discount eligible BUT quota exhausted: proceed with full price (no rejection)
+ * - If discount eligible BUT quota exhausted: REJECT booking (R2 requirement)
  */
 export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
   if (event.eventType !== "PricingCalculated") return;
@@ -88,30 +88,16 @@ export async function handlePricingCalculated(event: SagaEvent): Promise<void> {
       SERVICE_NAME,
     );
   } else {
-    // Case 3: Quota exhausted - proceed with FULL PRICE (no rejection)
+    // Case 3: Quota exhausted - REJECT the booking (R2 requirement)
     console.log(
-      `[${SERVICE_NAME}] Quota exhausted for ${event.correlationId}, proceeding with full price: ₹${basePrice}`,
+      `[${SERVICE_NAME}] Quota exhausted for ${event.correlationId}, REJECTING booking`,
     );
 
-    await updateBooking(event.correlationId, {
-      status: "quota_reserved",
-      discountApplied: false,
-      discountAmount: 0,
-      finalPrice: basePrice, // Full price, no discount
-    });
-
-    await emitEvent<DiscountQuotaReservedEvent>(
-      {
-        correlationId: event.correlationId,
-        eventType: "DiscountQuotaReserved",
-        data: {
-          quotaUsed: quotaStatus.used,
-          quotaLimit: quotaStatus.limit,
-          discountApplied: false,
-          quotaExhausted: true,
-        },
-      },
-      SERVICE_NAME,
+    // Fail the booking immediately with quota exhaustion message
+    await failBooking(
+      event.correlationId,
+      "Daily discount quota reached. Please try again tomorrow.",
+      false, // no compensation needed - nothing was reserved
     );
   }
 }

@@ -4,6 +4,7 @@ import {
   getServicesByIds,
   seedServicesIfEmpty,
 } from "@/lib/db/models/medicalService";
+import { getQuotaStatus } from "@/lib/db/models/discountQuota";
 
 // SAGA is initialized at server startup via instrumentation.ts
 
@@ -81,6 +82,31 @@ export async function POST(request: NextRequest) {
         { error: `Invalid service IDs: ${missing.join(", ")}` },
         { status: 400 },
       );
+    }
+
+    // Calculate base price
+    const basePrice = dbServices.reduce((sum, s) => sum + s.price, 0);
+
+    // Check discount eligibility (R1 rule)
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    const isBirthday =
+      dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
+    const discountEligible =
+      (gender === "female" && isBirthday) || basePrice > 1000;
+
+    // Early rejection: Check quota BEFORE starting SAGA (R2 rule)
+    if (discountEligible) {
+      const quotaStatus = await getQuotaStatus();
+      if (quotaStatus.used >= quotaStatus.limit) {
+        return NextResponse.json(
+          {
+            error: "Daily discount quota reached. Please try again tomorrow.",
+            code: "QUOTA_EXHAUSTED",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     // Map to service items

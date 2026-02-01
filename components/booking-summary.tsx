@@ -221,14 +221,14 @@ export function BookingSummary({
             )}
           </div>
         ) : discountEligible && quotaExhausted ? (
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              ⚠️ Daily discount quota has been exhausted.
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-sm text-red-700 dark:text-red-400">
+              ❌ Daily discount quota has been exhausted.
             </p>
-            <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
-              You would have qualified for a {discountPercentage}% discount, but
-              the daily limit has been reached. You'll be charged the full price
-              of ₹{basePrice.toLocaleString("en-IN")}.
+            <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+              You qualify for a {discountPercentage}% discount, but the daily
+              limit has been reached. Your booking will be rejected. Please try
+              again tomorrow.
             </p>
           </div>
         ) : null}
@@ -244,11 +244,19 @@ export function BookingSummary({
             Back
           </Button>
           <Button
-            className="flex-1 h-11"
+            className={`flex-1 h-11 ${discountEligible && quotaExhausted ? "bg-gray-500 " : "cursor-not-allowed"}`}
             onClick={onSubmit}
-            disabled={disabled || services.length === 0}
+            disabled={
+              disabled ||
+              services.length === 0 ||
+              (discountEligible && quotaExhausted)
+            }
           >
-            {disabled ? "Processing..." : "Confirm & Pay"}
+            {disabled
+              ? "Processing..."
+              : discountEligible && quotaExhausted
+                ? "Quota Exhausted"
+                : "Confirm & Pay"}
           </Button>
         </div>
       </CardContent>

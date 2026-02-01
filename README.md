@@ -70,7 +70,7 @@ Apply 12% discount if:
 
 - System-wide limit (configurable, default: 100)
 - Resets at **midnight IST**
-- When exhausted → proceeds with **full price** (no rejection)
+- When exhausted → **booking REJECTED** with message: "Daily discount quota reached. Please try again tomorrow."
 
 ---
 
@@ -193,7 +193,7 @@ Payment fails WITH discount applied → Compensation releases quota
 
 ### 3. Negative Case #2 ❌
 
-Daily quota exhausted → Proceeds with full price (no discount)
+Daily quota exhausted → Booking **REJECTED** with message
 
 ---
 
