@@ -244,7 +244,7 @@ export function BookingSummary({
             Back
           </Button>
           <Button
-            className={`flex-1 h-11 ${discountEligible && quotaExhausted ? "bg-gray-500 " : "cursor-not-allowed"}`}
+            className={`flex-1 h-11 ${discountEligible && quotaExhausted ? "bg-gray-500 cursor-not-allowed" : ""}`}
             onClick={onSubmit}
             disabled={
               disabled ||
