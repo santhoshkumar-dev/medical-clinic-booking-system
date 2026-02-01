@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
     }));
 
     // Initiate booking SAGA
+    // Quota check happens INSIDE the SAGA (DiscountQuotaService)
+    // If quota exhausted, SAGA will handle rejection via compensation flow
     const correlationId = await initiateBooking({
       customerName,
       gender,
