@@ -9,6 +9,7 @@ import {
   handlePaymentCompensation,
 } from "./paymentService";
 import { handlePaymentCompleted } from "./confirmationService";
+import { handleQuotaCheckRequested } from "./quotaService";
 import { handleBookingFailed } from "./bookingService";
 import { registerAuditLogHandlers } from "./auditLogService";
 import { initializeAdminSubscriptions } from "./adminService";
@@ -42,6 +43,8 @@ export async function initializeSaga(): Promise<void> {
 
   // 4. PaymentCompleted -> ConfirmationService confirms booking
   eventBus.subscribe("PaymentCompleted", handlePaymentCompleted);
+
+  eventBus.subscribe("QuotaCheckRequested", handleQuotaCheckRequested);
 
   // 5. BookingFailed -> BookingService handles failure
   eventBus.subscribe("BookingFailed", handleBookingFailed);

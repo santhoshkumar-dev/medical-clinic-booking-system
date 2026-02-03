@@ -10,7 +10,9 @@ export type SagaEventType =
   | "BookingFailed"
   | "CompensationTriggered"
   | "DiscountQuotaReleased"
-  | "PaymentReversed";
+  | "PaymentReversed"
+  | "QuotaExhausted"
+  | "QuotaCheckRequested";
 
 // Admin Event Types
 export type AdminEventType =
@@ -53,8 +55,8 @@ export interface PricingCalculatedEvent extends BaseEvent {
 export interface DiscountQuotaReservedEvent extends BaseEvent {
   eventType: "DiscountQuotaReserved";
   data: {
-    quotaUsed: number;
-    quotaLimit: number;
+    quotaUsed?: number;
+    quotaLimit?: number;
     discountApplied?: boolean;
     quotaExhausted?: boolean;
   };
@@ -123,6 +125,14 @@ export interface PaymentReversedEvent extends BaseEvent {
   };
 }
 
+export interface QuotaCheckRequestedEvent extends BaseEvent {
+  eventType: "QuotaCheckRequested";
+  data: {
+    amount: number;
+    discountApplied: boolean;
+  };
+}
+
 // Admin Events
 export interface AdminAuthenticatedEvent extends BaseEvent {
   eventType: "AdminAuthenticated";
@@ -165,7 +175,8 @@ export type SagaEvent =
   | BookingFailedEvent
   | CompensationTriggeredEvent
   | DiscountQuotaReleasedEvent
-  | PaymentReversedEvent;
+  | PaymentReversedEvent
+  | QuotaCheckRequestedEvent;
 
 export type AdminEvent =
   | AdminAuthenticatedEvent

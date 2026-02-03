@@ -4,6 +4,7 @@ import { ensureConnection } from "../mongoose";
 // Status types
 export type BookingStatus =
   | "pending"
+  | "priced"
   | "pricing_calculated"
   | "quota_reserved"
   | "quota_rejected"
@@ -67,6 +68,7 @@ const BookingSchema = new Schema<IBooking>(
       type: String,
       enum: [
         "pending",
+        "priced",
         "pricing_calculated",
         "quota_reserved",
         "quota_rejected",

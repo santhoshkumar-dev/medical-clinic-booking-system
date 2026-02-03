@@ -58,6 +58,7 @@ class RedisEventBus {
       "CompensationTriggered",
       "DiscountQuotaReleased",
       "PaymentReversed",
+      "QuotaCheckRequested",
       // Admin events
       "AdminAuthenticated",
       "DiscountQuotaUpdated",
@@ -168,6 +169,7 @@ class RedisEventBus {
       "CompensationTriggered",
       "DiscountQuotaReleased",
       "PaymentReversed",
+      "QuotaCheckRequested",
     ];
     return sagaEvents.includes(eventType as SagaEventType);
   }

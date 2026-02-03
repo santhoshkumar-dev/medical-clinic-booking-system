@@ -3,6 +3,7 @@ import {
   PaymentCompletedEvent,
   BookingConfirmedEvent,
   SagaEvent,
+  QuotaCheckRequestedEvent,
 } from "../events/types";
 import {
   updateBooking,
@@ -29,24 +30,12 @@ export async function handlePaymentCompleted(event: SagaEvent): Promise<void> {
     return;
   }
 
-  // Generate a human-readable reference ID
-  const referenceId = await generateReferenceId();
-
-  // Update booking to confirmed status
-  await updateBooking(event.correlationId, {
-    status: "confirmed",
-    referenceId,
-    finalPrice: paymentEvent.data.amount,
-  });
-
-  // Emit BookingConfirmed event - terminal success state
-  await emitEvent<BookingConfirmedEvent>(
+  await emitEvent<QuotaCheckRequestedEvent>(
     {
       correlationId: event.correlationId,
-      eventType: "BookingConfirmed",
+      eventType: "QuotaCheckRequested",
       data: {
-        referenceId,
-        finalPrice: paymentEvent.data.amount,
+        amount: paymentEvent.data.amount,
         discountApplied: booking.discountApplied,
       },
     },
