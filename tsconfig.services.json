@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "lib": ["esnext", "dom"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": false,
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react",
+    "rootDir": ".",
+    "outDir": "./dist",
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["lib/**/*", "services-entrypoint.js"],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "lib/auth/**/*",
+    "lib/hooks/**/*",
+    "lib/components/**/*",
+    "lib/utils.ts"
+  ]
+}

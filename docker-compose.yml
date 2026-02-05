@@ -1,0 +1,99 @@
+version: "3.8"
+
+# Local Development Environment
+# Usage: docker-compose up -d
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: medical-clinic-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: medical-clinic
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - medical-clinic-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Redis (Event Bus)
+  redis:
+    image: redis:7-alpine
+    container_name: medical-clinic-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - medical-clinic-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: redis-server --appendonly yes
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medical-clinic-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Service Mode - 'local' runs SAGA in same process
+      - SERVICE_MODE=local
+
+      # Database
+      - MONGODB_URI=mongodb://mongodb:27017/medical-clinic
+
+      # Redis
+      - REDIS_URL=redis://redis:6379
+
+      # Business Rules
+      - DAILY_DISCOUNT_QUOTA=100
+      - PAYMENT_SIMULATION_MODE=success
+
+      # Auth
+      - BETTER_AUTH_SECRET=change-this-to-a-secure-random-string-32-chars
+      - BETTER_AUTH_URL=http://localhost:3000
+
+      # Node
+      - NODE_ENV=development
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - medical-clinic-network
+    volumes:
+      # Mount source code for hot reload in development
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+networks:
+  medical-clinic-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local

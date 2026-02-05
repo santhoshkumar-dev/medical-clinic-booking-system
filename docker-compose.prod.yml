@@ -1,0 +1,37 @@
+# Production SAGA Services Only
+# This runs only the SAGA services container
+# Assumes MongoDB and Redis are already running (locally or managed service)
+
+services:
+  saga-services:
+    build:
+      context: .
+      dockerfile: services.Dockerfile
+    container_name: medical-clinic-saga-services
+    restart: always
+    environment:
+      # Database - Update with your MongoDB connection string
+      MONGODB_URI: ${MONGODB_URI:-mongodb://localhost:27017/medical-clinic}
+
+      # Redis - Update with your Redis connection string
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
+
+      # Node Environment
+      NODE_ENV: production
+    # Use host network to access local MongoDB/Redis
+    # OR use host.docker.internal to connect to host services
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s

@@ -150,6 +150,58 @@ npx ts-node scripts/seed-admin.ts
 
 ---
 
+## 🐳 Docker Deployment
+
+The application supports **two deployment architectures**:
+
+### Local Mode (Development)
+
+SAGA services run in the same process as Next.js app - simpler setup, easier debugging.
+
+### Production Mode (Microservices)
+
+SAGA services run in a **separate Docker container** - better scalability and resource isolation.
+
+### Quick Start
+
+```bash
+# Local Mode (Development)
+docker-compose up -d
+
+# Production Mode (Microservices)
+docker-compose -f docker-compose.prod.yml up -d
+
+# Access: http://localhost:3000
+```
+
+### Architecture Modes
+
+| Mode           | SAGA Location          | Containers | Best For                 |
+| -------------- | ---------------------- | ---------- | ------------------------ |
+| **Local**      | Inside Next.js process | 3          | Development, testing     |
+| **Production** | Separate container     | 4          | Production, high traffic |
+
+**Controlled by**: `SERVICE_MODE` environment variable (`local` or `production`)
+
+### Documentation
+
+| Guide                                                            | Description                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------ |
+| [MICROSERVICES_ARCHITECTURE.md](./MICROSERVICES_ARCHITECTURE.md) | **⭐ NEW**: Microservices architecture explained |
+| [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md)                   | Complete deployment guide                        |
+| [DOCKER_COMMANDS.md](./DOCKER_COMMANDS.md)                       | Quick command reference                          |
+
+### Key Benefits
+
+✅ **Flexible**: Switch between modes with one environment variable  
+✅ **Scalable**: Scale SAGA services independently in production  
+✅ **Isolated**: Better fault isolation and resource management  
+✅ **Cloud-Ready**: Deploy to Cloud Run, Coolify, Kubernetes, etc.
+
+👉 See [MICROSERVICES_ARCHITECTURE.md](./MICROSERVICES_ARCHITECTURE.md) for detailed architecture explanation.
+
+---
+
 ## 📁 Project Structure
 
 ```
